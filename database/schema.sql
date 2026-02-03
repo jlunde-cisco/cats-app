@@ -2,10 +2,10 @@
 -- Customer AI Tracking System
 
 -- Create database
-CREATE DATABASE cats_db;
+-- CREATE DATABASE cats_db;
 
 -- Connect to the database
-\c cats_db;
+--\c cats_db;
 
 -- Customers table
 CREATE TABLE customers (
