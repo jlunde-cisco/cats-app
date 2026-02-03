@@ -15,9 +15,9 @@ cats-app/
 │   └── schema.sql             ← Already exists
 │
 ├── frontend/
-│   ├── Dockerfile             ← NEW FILE (download FRONTEND-Dockerfile, rename to Dockerfile)
-│   ├── nginx.conf             ← NEW FILE (download FRONTEND-nginx.conf)
-│   ├── .dockerignore          ← NEW FILE (download FRONTEND-dockerignore, rename to .dockerignore)
+│   ├── Dockerfile             ← NEW FILE 
+│   ├── nginx.conf             ← NEW FILE 
+│   ├── .dockerignore          ← NEW FILE
 │   ├── package.json           ← Already exists
 │   ├── package-lock.json      ← Already exists
 │   ├── tailwind.config.js     ← Already exists
@@ -33,8 +33,8 @@ cats-app/
 │           └── CustomerInput.js   ← Already exists
 │
 └── backend/
-    ├── Dockerfile             ← NEW FILE (download BACKEND-Dockerfile, rename to Dockerfile)
-    ├── .dockerignore          ← NEW FILE (download BACKEND-dockerignore, rename to .dockerignore)
+    ├── Dockerfile             ← NEW FILE 
+    ├── .dockerignore          ← NEW FILE 
     ├── server.js              ← Already exists
     ├── package.json           ← Already exists
     ├── package-lock.json      ← Already exists
@@ -51,40 +51,11 @@ git clone https://github.com/jlunde-cisco/cats-app.git
 cd cats-app
 ```
 
-### 2. Download the 7 Docker files from Claude
-
-You'll download these files:
-- ROOT-docker-compose.yml
-- FRONTEND-Dockerfile
-- FRONTEND-nginx.conf
-- FRONTEND-dockerignore
-- BACKEND-Dockerfile
-- BACKEND-dockerignore
-- DOCKER_SETUP_GUIDE.md (this file)
-
-### 3. Place files in correct locations
-
-```bash
-# From your cats-app directory:
-
-# ROOT files (rename when copying)
-cp ~/Downloads/ROOT-docker-compose.yml ./docker-compose.yml
-
-# FRONTEND files (rename when copying)
-cp ~/Downloads/FRONTEND-Dockerfile ./frontend/Dockerfile
-cp ~/Downloads/FRONTEND-nginx.conf ./frontend/nginx.conf
-cp ~/Downloads/FRONTEND-dockerignore ./frontend/.dockerignore
-
-# BACKEND files (rename when copying)
-cp ~/Downloads/BACKEND-Dockerfile ./backend/Dockerfile
-cp ~/Downloads/BACKEND-dockerignore ./backend/.dockerignore
-```
-
-### 4. Start Docker Desktop
+### 2. Start Docker Desktop
 
 Make sure Docker Desktop is running (check for whale icon in menu bar)
 
-### 5. Build and run
+### 3. Build and run
 
 ```bash
 cd ~/cats-app
@@ -98,13 +69,13 @@ This will:
 4. Start all containers
 5. Initialize database with schema.sql
 
-### 6. Access the application
+### 4. Access the application
 
 - **Frontend**: http://localhost
 - **Backend API**: http://localhost:3001/api/health
 - **Database**: localhost:5432 (user: cats_user, password: Cisco123#)
 
-### 7. Monitor logs
+### 5. Monitor logs
 
 ```bash
 # All services
@@ -120,13 +91,13 @@ docker-compose logs -f frontend
 docker-compose logs -f postgres
 ```
 
-### 8. Stop everything
+### 6. Stop everything
 
 ```bash
 docker-compose down
 ```
 
-### 9. Stop and delete all data (fresh start)
+### 7. Stop and delete all data (fresh start)
 
 ```bash
 docker-compose down -v
