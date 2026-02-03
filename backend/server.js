@@ -1,6 +1,8 @@
 // CATS Backend API
 // server.js
 
+require('dotenv').config();
+
 const express = require('express');
 const cors = require('cors');
 const { Pool } = require('pg');
@@ -50,7 +52,6 @@ app.get('/api/customers/:id', async (req, res) => {
   const { id } = req.params;
   
   try {
-    // Get customer
     const customerResult = await pool.query(
       'SELECT * FROM customers WHERE id = $1',
       [id]
@@ -62,13 +63,11 @@ app.get('/api/customers/:id', async (req, res) => {
     
     const customer = customerResult.rows[0];
     
-    // Get applications
     const appsResult = await pool.query(
       'SELECT * FROM applications WHERE customer_id = $1',
       [id]
     );
     
-    // For each application, get modalities, models, and cloud services
     const applications = await Promise.all(
       appsResult.rows.map(async (app) => {
         const [modalities, models, cloudServices] = await Promise.all([
@@ -86,13 +85,11 @@ app.get('/api/customers/:id', async (req, res) => {
       })
     );
     
-    // Get compute vendors
     const vendorsResult = await pool.query(
       'SELECT vendor_name FROM compute_vendors WHERE customer_id = $1',
       [id]
     );
     
-    // Get meeting notes
     const notesResult = await pool.query(
       'SELECT * FROM meeting_notes WHERE customer_id = $1 ORDER BY created_at DESC',
       [id]
@@ -119,7 +116,6 @@ app.post('/api/customers', async (req, res) => {
   try {
     await client.query('BEGIN');
     
-    // Insert customer
     const customerResult = await client.query(
       'INSERT INTO customers (customer_name, industry) VALUES ($1, $2) RETURNING *',
       [customerName, industry]
@@ -127,7 +123,6 @@ app.post('/api/customers', async (req, res) => {
     
     const customerId = customerResult.rows[0].id;
     
-    // Insert applications and their related data
     if (applications && applications.length > 0) {
       for (const app of applications) {
         const appResult = await client.query(
@@ -137,7 +132,6 @@ app.post('/api/customers', async (req, res) => {
         
         const appId = appResult.rows[0].id;
         
-        // Insert modalities
         if (app.modalities && app.modalities.length > 0) {
           for (const modality of app.modalities) {
             await client.query(
@@ -147,7 +141,6 @@ app.post('/api/customers', async (req, res) => {
           }
         }
         
-        // Insert models
         if (app.models && app.models.length > 0) {
           for (const model of app.models) {
             await client.query(
@@ -157,7 +150,6 @@ app.post('/api/customers', async (req, res) => {
           }
         }
         
-        // Insert cloud services
         if (app.cloudServices && app.cloudServices.length > 0) {
           for (const service of app.cloudServices) {
             await client.query(
@@ -169,7 +161,6 @@ app.post('/api/customers', async (req, res) => {
       }
     }
     
-    // Insert compute vendors
     if (computeVendors && computeVendors.length > 0) {
       for (const vendor of computeVendors) {
         await client.query(
@@ -179,7 +170,6 @@ app.post('/api/customers', async (req, res) => {
       }
     }
     
-    // Insert meeting notes
     if (meetingNotes && meetingNotes.length > 0) {
       for (const note of meetingNotes) {
         await client.query(
@@ -207,26 +197,21 @@ app.post('/api/customers', async (req, res) => {
 // Update customer
 app.put('/api/customers/:id', async (req, res) => {
   const { id } = req.params;
-  const { customerName, industry, applications, computeVendors, meetingNotes } = req.body;
+  const { customerName, industry, applications, computeVendors } = req.body;
   
   const client = await pool.connect();
   
   try {
     await client.query('BEGIN');
     
-    // Update customer basic info
     await client.query(
       'UPDATE customers SET customer_name = $1, industry = $2 WHERE id = $3',
       [customerName, industry, id]
     );
     
-    // Delete existing applications and related data (CASCADE will handle related tables)
     await client.query('DELETE FROM applications WHERE customer_id = $1', [id]);
-    
-    // Delete existing compute vendors
     await client.query('DELETE FROM compute_vendors WHERE customer_id = $1', [id]);
     
-    // Re-insert applications (same logic as create)
     if (applications && applications.length > 0) {
       for (const app of applications) {
         const appResult = await client.query(
@@ -265,7 +250,6 @@ app.put('/api/customers/:id', async (req, res) => {
       }
     }
     
-    // Re-insert compute vendors
     if (computeVendors && computeVendors.length > 0) {
       for (const vendor of computeVendors) {
         await client.query(
@@ -276,7 +260,6 @@ app.put('/api/customers/:id', async (req, res) => {
     }
     
     await client.query('COMMIT');
-    
     res.json({ message: 'Customer updated successfully' });
   } catch (err) {
     await client.query('ROLLBACK');
@@ -300,17 +283,129 @@ app.delete('/api/customers/:id', async (req, res) => {
   }
 });
 
+// ===== APPLICATION ENDPOINTS =====
+
+// Add application to a customer
+app.post('/api/customers/:id/applications', async (req, res) => {
+  const { id } = req.params;
+  const { application_name, modalities, models, cloudServices } = req.body;
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const appResult = await client.query(
+      'INSERT INTO applications (customer_id, application_name) VALUES ($1, $2) RETURNING *',
+      [id, application_name]
+    );
+    const appId = appResult.rows[0].id;
+
+    if (modalities && modalities.length > 0) {
+      for (const m of modalities) {
+        await client.query('INSERT INTO modalities (application_id, modality) VALUES ($1, $2)', [appId, m]);
+      }
+    }
+    if (models && models.length > 0) {
+      for (const m of models) {
+        await client.query('INSERT INTO foundational_models (application_id, model_name) VALUES ($1, $2)', [appId, m]);
+      }
+    }
+    if (cloudServices && cloudServices.length > 0) {
+      for (const s of cloudServices) {
+        await client.query('INSERT INTO cloud_services (application_id, service_name) VALUES ($1, $2)', [appId, s]);
+      }
+    }
+
+    await client.query('COMMIT');
+    res.status(201).json({
+      ...appResult.rows[0],
+      modalities: modalities || [],
+      models: models || [],
+      cloudServices: cloudServices || []
+    });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  } finally {
+    client.release();
+  }
+});
+
+// Delete a single application (CASCADE handles modalities/models/services)
+app.delete('/api/applications/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    await pool.query('DELETE FROM applications WHERE id = $1', [id]);
+    res.json({ message: 'Application deleted successfully' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+
+// Update an existing application
+app.put('/api/applications/:id', async (req, res) => {
+  const { id } = req.params;
+  const { application_name, modalities, models, cloudServices } = req.body;
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    
+    await client.query(
+      'UPDATE applications SET application_name = $1 WHERE id = $2',
+      [application_name, id]
+    );
+    
+    await client.query('DELETE FROM modalities WHERE application_id = $1', [id]);
+    await client.query('DELETE FROM foundational_models WHERE application_id = $1', [id]);
+    await client.query('DELETE FROM cloud_services WHERE application_id = $1', [id]);
+    
+    if (modalities && modalities.length > 0) {
+      for (const m of modalities) {
+        await client.query('INSERT INTO modalities (application_id, modality) VALUES ($1, $2)', [id, m]);
+      }
+    }
+    if (models && models.length > 0) {
+      for (const m of models) {
+        await client.query('INSERT INTO foundational_models (application_id, model_name) VALUES ($1, $2)', [id, m]);
+      }
+    }
+    if (cloudServices && cloudServices.length > 0) {
+      for (const s of cloudServices) {
+        await client.query('INSERT INTO cloud_services (application_id, service_name) VALUES ($1, $2)', [id, s]);
+      }
+    }
+    
+    await client.query('COMMIT');
+    
+    res.json({
+      id: parseInt(id),
+      application_name,
+      modalities: modalities || [],
+      models: models || [],
+      cloudServices: cloudServices || []
+    });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  } finally {
+    client.release();
+  }
+});
 // ===== MEETING NOTES ENDPOINTS =====
 
 // Add meeting note
 app.post('/api/customers/:id/notes', async (req, res) => {
   const { id } = req.params;
-  const { text, timestamp } = req.body;
+  const noteText = req.body.note_text || req.body.text;
   
   try {
     const result = await pool.query(
-      'INSERT INTO meeting_notes (customer_id, note_text, created_at) VALUES ($1, $2, $3) RETURNING *',
-      [id, text, timestamp]
+      'INSERT INTO meeting_notes (customer_id, note_text) VALUES ($1, $2) RETURNING *',
+      [id, noteText]
     );
     
     res.status(201).json(result.rows[0]);

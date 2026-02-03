@@ -2,6 +2,84 @@ import React, { useState } from 'react';
 import { Save, Plus, X, Calendar, Clock, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
+// All static data and sub-components defined OUTSIDE CustomerInput
+// This prevents them from being recreated on every render, which was killing input focus
+
+const foundationalModels = [
+  'GPT-4', 'GPT-3.5', 'Claude 3.5', 'Claude 3', 'Gemini Pro', 'Gemini Ultra',
+  'Llama 3', 'Llama 2', 'Mistral', 'Command R+', 'PaLM 2', 'Cohere'
+];
+
+const cloudServicesList = [
+  { name: 'AWS Bedrock', provider: 'AWS' },
+  { name: 'Azure OpenAI', provider: 'Azure' },
+  { name: 'Google Vertex AI', provider: 'GCP' },
+  { name: 'Palantir Foundry', provider: 'Palantir' },
+  { name: 'AWS SageMaker', provider: 'AWS' },
+  { name: 'Azure ML', provider: 'Azure' },
+  { name: 'IBM watsonx', provider: 'IBM' }
+];
+
+const modalitiesList = ['Text', 'Image', 'Audio', 'Video', 'Code', 'Multimodal'];
+
+const computeVendorsList = [
+  'NVIDIA', 'Cisco', 'Dell', 'HPE', 'Supermicro', 'Lenovo',
+  'IBM', 'Fujitsu', 'Inspur', 'Huawei'
+];
+
+const industries = [
+  'Technology', 'Financial Services', 'Healthcare', 'Manufacturing',
+  'Retail', 'Energy', 'Telecommunications', 'Government', 'Education', 'Other'
+];
+
+const MultiSelectBubbles = ({ items, selected, field, getLabel, onToggle, customInputValue, onCustomInputChange, onAddCustom, customPlaceholder }) => (
+  <div className="space-y-3">
+    <div className="flex flex-wrap gap-2">
+      {items.map((item) => {
+        const value = typeof item === 'string' ? item : item.name;
+        const label = getLabel ? getLabel(item) : value;
+        const isSelected = selected.includes(value);
+        return (
+          <button
+            key={value}
+            type="button"
+            onClick={() => onToggle(field, value)}
+            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+              isSelected
+                ? 'bg-blue-600 text-white shadow-md'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            {label}
+          </button>
+        );
+      })}
+    </div>
+    <div className="flex gap-2">
+      <input
+        type="text"
+        value={customInputValue}
+        onChange={onCustomInputChange}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            onAddCustom();
+          }
+        }}
+        placeholder={customPlaceholder || 'Add custom option...'}
+        className="flex-1 px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+      />
+      <button
+        type="button"
+        onClick={onAddCustom}
+        className="px-4 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors"
+      >
+        Add
+      </button>
+    </div>
+  </div>
+);
+
 const CustomerInput = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
@@ -27,50 +105,34 @@ const CustomerInput = () => {
     computeVendor: ''
   });
 
-  const foundationalModels = [
-    'GPT-4', 'GPT-3.5', 'Claude 3.5', 'Claude 3', 'Gemini Pro', 'Gemini Ultra',
-    'Llama 3', 'Llama 2', 'Mistral', 'Command R+', 'PaLM 2', 'Cohere'
-  ];
-
-  const cloudServices = [
-    { name: 'AWS Bedrock', provider: 'AWS' },
-    { name: 'Azure OpenAI', provider: 'Azure' },
-    { name: 'Google Vertex AI', provider: 'GCP' },
-    { name: 'Palantir Foundry', provider: 'Palantir' },
-    { name: 'AWS SageMaker', provider: 'AWS' },
-    { name: 'Azure ML', provider: 'Azure' },
-    { name: 'IBM watsonx', provider: 'IBM' }
-  ];
-
-  const modalities = ['Text', 'Image', 'Audio', 'Video', 'Code', 'Multimodal'];
-
-  const computeVendors = [
-    'NVIDIA', 'Cisco', 'Dell', 'HPE', 'Supermicro', 'Lenovo', 
-    'IBM', 'Fujitsu', 'Inspur', 'Huawei'
-  ];
-
-  const industries = [
-    'Technology', 'Financial Services', 'Healthcare', 'Manufacturing',
-    'Retail', 'Energy', 'Telecommunications', 'Government', 'Education', 'Other'
-  ];
-
+  // Toggle for app-level fields (modalities, models, cloudServices)
   const toggleSelection = (field, value) => {
     const current = currentApp[field];
     const updated = current.includes(value)
       ? current.filter(v => v !== value)
       : [...current, value];
-    setCurrentApp({...currentApp, [field]: updated});
+    setCurrentApp({ ...currentApp, [field]: updated });
   };
 
-  const addCustomItem = (listType, field, inputField) => {
-    const value = customInputs[inputField].trim();
+  // Add a custom item to an app-level field
+  const addCustomItem = (field, inputKey) => {
+    const value = customInputs[inputKey].trim();
     if (value && !currentApp[field].includes(value)) {
       setCurrentApp({
         ...currentApp,
         [field]: [...currentApp[field], value]
       });
-      setCustomInputs({...customInputs, [inputField]: ''});
+      setCustomInputs({ ...customInputs, [inputKey]: '' });
     }
+  };
+
+  // Toggle for compute vendors (lives on formData, not currentApp)
+  const toggleComputeVendor = (vendor) => {
+    const current = formData.computeVendors || [];
+    const updated = current.includes(vendor)
+      ? current.filter(v => v !== vendor)
+      : [...current, vendor];
+    setFormData({ ...formData, computeVendors: updated });
   };
 
   const addCustomComputeVendor = () => {
@@ -80,30 +142,17 @@ const CustomerInput = () => {
         ...formData,
         computeVendors: [...(formData.computeVendors || []), value]
       });
-      setCustomInputs({...customInputs, computeVendor: ''});
+      setCustomInputs({ ...customInputs, computeVendor: '' });
     }
-  };
-
-  const toggleComputeVendor = (vendor) => {
-    const current = formData.computeVendors || [];
-    const updated = current.includes(vendor)
-      ? current.filter(v => v !== vendor)
-      : [...current, vendor];
-    setFormData({...formData, computeVendors: updated});
   };
 
   const addApplication = () => {
     if (currentApp.name.trim()) {
       setFormData({
         ...formData,
-        applications: [...formData.applications, {...currentApp, id: Date.now()}]
+        applications: [...formData.applications, { ...currentApp, id: Date.now() }]
       });
-      setCurrentApp({
-        name: '',
-        modalities: [],
-        models: [],
-        cloudServices: []
-      });
+      setCurrentApp({ name: '', modalities: [], models: [], cloudServices: [] });
     }
   };
 
@@ -125,16 +174,8 @@ const CustomerInput = () => {
             id: Date.now(),
             text: noteText,
             timestamp: now.toISOString(),
-            dateDisplay: now.toLocaleDateString('en-US', { 
-              month: 'short', 
-              day: 'numeric', 
-              year: 'numeric' 
-            }),
-            timeDisplay: now.toLocaleTimeString('en-US', { 
-              hour: 'numeric', 
-              minute: '2-digit',
-              hour12: true 
-            })
+            dateDisplay: now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+            timeDisplay: now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
           }
         ]
       });
@@ -151,7 +192,6 @@ const CustomerInput = () => {
 
   const handleSubmit = async () => {
     try {
-      // Prepare data in format expected by backend
       const submitData = {
         customerName: formData.customerName,
         industry: formData.industry,
@@ -167,15 +207,12 @@ const CustomerInput = () => {
 
       const response = await fetch('/api/customers', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(submitData)
       });
 
       if (response.ok) {
         alert('Customer saved successfully!');
-        // Navigate to lookup page
         navigate('/');
       } else {
         const error = await response.json();
@@ -186,56 +223,6 @@ const CustomerInput = () => {
       alert('Failed to save customer. Please try again.');
     }
   };
-
-  const MultiSelectBubbles = ({ items, selected, field, getLabel, customInputField, placeholder }) => (
-    <div className="space-y-3">
-      <div className="flex flex-wrap gap-2">
-        {items.map((item) => {
-          const value = typeof item === 'string' ? item : item.name;
-          const label = getLabel ? getLabel(item) : value;
-          const isSelected = selected.includes(value);
-          return (
-            <button
-              key={value}
-              type="button"
-              onClick={() => toggleSelection(field, value)}
-              className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
-                isSelected
-                  ? 'bg-blue-600 text-white shadow-md'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              {label}
-            </button>
-          );
-        })}
-      </div>
-      {customInputField && (
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={customInputs[customInputField]}
-            onChange={(e) => setCustomInputs({...customInputs, [customInputField]: e.target.value})}
-            onKeyPress={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                addCustomItem(items, field, customInputField);
-              }
-            }}
-            placeholder={placeholder || "Add custom option..."}
-            className="flex-1 px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
-          <button
-            type="button"
-            onClick={() => addCustomItem(items, field, customInputField)}
-            className="px-4 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors"
-          >
-            Add
-          </button>
-        </div>
-      )}
-    </div>
-  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 p-6">
@@ -249,6 +236,7 @@ const CustomerInput = () => {
         {/* Main Form */}
         <div className="bg-white rounded-lg shadow-md p-8">
           <div className="space-y-8">
+
             {/* Customer Information Section */}
             <section>
               <h2 className="text-2xl font-semibold text-gray-800 mb-4 pb-2 border-b-2 border-blue-500">
@@ -262,7 +250,7 @@ const CustomerInput = () => {
                   <input
                     type="text"
                     value={formData.customerName}
-                    onChange={(e) => setFormData({...formData, customerName: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, customerName: e.target.value })}
                     placeholder="Enter customer name..."
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
@@ -273,7 +261,7 @@ const CustomerInput = () => {
                   </label>
                   <select
                     value={formData.industry}
-                    onChange={(e) => setFormData({...formData, industry: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, industry: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
                     <option value="">Select industry...</option>
@@ -291,61 +279,61 @@ const CustomerInput = () => {
                 AI Applications
               </h2>
 
-              {/* Current Application Form */}
               <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-6 mb-4">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4">Add Application</h3>
-                
+
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Application Name
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Application Name</label>
                     <input
                       type="text"
                       value={currentApp.name}
-                      onChange={(e) => setCurrentApp({...currentApp, name: e.target.value})}
+                      onChange={(e) => setCurrentApp({ ...currentApp, name: e.target.value })}
                       placeholder="e.g., Customer Support Chatbot"
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Modalities
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Modalities</label>
                     <MultiSelectBubbles
-                      items={modalities}
+                      items={modalitiesList}
                       selected={currentApp.modalities}
                       field="modalities"
-                      customInputField="modality"
-                      placeholder="Add custom modality (e.g., 3D, Haptic)..."
+                      onToggle={toggleSelection}
+                      customInputValue={customInputs.modality}
+                      onCustomInputChange={(e) => setCustomInputs({ ...customInputs, modality: e.target.value })}
+                      onAddCustom={() => addCustomItem('modalities', 'modality')}
+                      customPlaceholder="Add custom modality (e.g., 3D, Haptic)..."
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Foundational Models
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Foundational Models</label>
                     <MultiSelectBubbles
                       items={foundationalModels}
                       selected={currentApp.models}
                       field="models"
-                      customInputField="model"
-                      placeholder="Add custom model (e.g., Custom Fine-tuned Model)..."
+                      onToggle={toggleSelection}
+                      customInputValue={customInputs.model}
+                      onCustomInputChange={(e) => setCustomInputs({ ...customInputs, model: e.target.value })}
+                      onAddCustom={() => addCustomItem('models', 'model')}
+                      customPlaceholder="Add custom model (e.g., Mistral7b)..."
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Cloud AI Services
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Cloud AI Services</label>
                     <MultiSelectBubbles
-                      items={cloudServices}
+                      items={cloudServicesList}
                       selected={currentApp.cloudServices}
                       field="cloudServices"
                       getLabel={(item) => item.name}
-                      customInputField="cloudService"
-                      placeholder="Add custom cloud service..."
+                      onToggle={toggleSelection}
+                      customInputValue={customInputs.cloudService}
+                      onCustomInputChange={(e) => setCustomInputs({ ...customInputs, cloudService: e.target.value })}
+                      onAddCustom={() => addCustomItem('cloudServices', 'cloudService')}
+                      customPlaceholder="Add custom cloud service..."
                     />
                   </div>
 
@@ -371,27 +359,14 @@ const CustomerInput = () => {
                     <div key={app.id} className="bg-gray-50 border border-gray-200 rounded-lg p-4">
                       <div className="flex justify-between items-start mb-2">
                         <h4 className="font-semibold text-gray-800 text-lg">{app.name}</h4>
-                        <button
-                          type="button"
-                          onClick={() => removeApplication(app.id)}
-                          className="text-red-600 hover:text-red-800"
-                        >
+                        <button type="button" onClick={() => removeApplication(app.id)} className="text-red-600 hover:text-red-800">
                           <Trash2 size={18} />
                         </button>
                       </div>
                       <div className="space-y-1 text-sm">
-                        <div>
-                          <span className="font-medium text-gray-700">Modalities: </span>
-                          <span className="text-gray-600">{app.modalities.join(', ') || 'None selected'}</span>
-                        </div>
-                        <div>
-                          <span className="font-medium text-gray-700">Models: </span>
-                          <span className="text-gray-600">{app.models.join(', ') || 'None selected'}</span>
-                        </div>
-                        <div>
-                          <span className="font-medium text-gray-700">Cloud Services: </span>
-                          <span className="text-gray-600">{app.cloudServices.join(', ') || 'None selected'}</span>
-                        </div>
+                        <div><span className="font-medium text-gray-700">Modalities: </span><span className="text-gray-600">{app.modalities.join(', ') || 'None selected'}</span></div>
+                        <div><span className="font-medium text-gray-700">Models: </span><span className="text-gray-600">{app.models.join(', ') || 'None selected'}</span></div>
+                        <div><span className="font-medium text-gray-700">Cloud Services: </span><span className="text-gray-600">{app.cloudServices.join(', ') || 'None selected'}</span></div>
                       </div>
                     </div>
                   ))}
@@ -404,10 +379,10 @@ const CustomerInput = () => {
               <h2 className="text-2xl font-semibold text-gray-800 mb-4 pb-2 border-b-2 border-blue-500">
                 Compute Vendors
               </h2>
-              
+
               <div className="space-y-3">
                 <div className="flex flex-wrap gap-2">
-                  {computeVendors.map((vendor) => {
+                  {computeVendorsList.map((vendor) => {
                     const isSelected = formData.computeVendors?.includes(vendor);
                     return (
                       <button
@@ -425,13 +400,13 @@ const CustomerInput = () => {
                     );
                   })}
                 </div>
-                
+
                 <div className="flex gap-2">
                   <input
                     type="text"
                     value={customInputs.computeVendor}
-                    onChange={(e) => setCustomInputs({...customInputs, computeVendor: e.target.value})}
-                    onKeyPress={(e) => {
+                    onChange={(e) => setCustomInputs({ ...customInputs, computeVendor: e.target.value })}
+                    onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                         e.preventDefault();
                         addCustomComputeVendor();
@@ -467,9 +442,7 @@ const CustomerInput = () => {
               <div className="bg-green-50 border-2 border-green-200 rounded-lg p-6 mb-4">
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Add Note
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Add Note</label>
                     <textarea
                       value={noteText}
                       onChange={(e) => setNoteText(e.target.value)}
@@ -509,11 +482,7 @@ const CustomerInput = () => {
                             <span>{note.timeDisplay}</span>
                           </div>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => removeMeetingNote(note.id)}
-                          className="text-red-600 hover:text-red-800"
-                        >
+                        <button type="button" onClick={() => removeMeetingNote(note.id)} className="text-red-600 hover:text-red-800">
                           <Trash2 size={16} />
                         </button>
                       </div>
